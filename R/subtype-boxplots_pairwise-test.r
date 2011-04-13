@@ -125,10 +125,10 @@ for(k in 1:length(geneSymbol)){
     names(dd) <- subtypesOrder
     
     ## create factor with patients and their subtypes for dataset i
-    subtypesAllFactor <- as.list(NULL)
-    for(m in 1:length(subtypesOrder)){
-      subtypesAllFactor[[m]] <- rep(names(dd)[m], length(dd[[m]]))
-    }    
+##    subtypesAllFactor <- as.list(NULL)
+##    for(m in 1:length(subtypesOrder)){
+##      subtypesAllFactor[[m]] <- rep(names(dd)[m], length(dd[[m]]))
+##    }    
     
     #######################                 
     #### other approach (two vectors)
