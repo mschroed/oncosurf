@@ -105,11 +105,11 @@ dev.off()
 geneSymbol <- fData(mainz7g)[,"Gene.symbol"]
 probeAffy <- fData(mainz7g)[,"probe"]
 probeAgi <- as.character(fData(nki7g)[,"probe"])
-pairwiseTest <- pairwiseTestDatasets <- as.list(NULL)
+pairwiseTestLess <- pairwiseTestGreater <- pairwiseTestDatasetsLess <- pairwiseTestDatasetsGreater <- as.list(NULL)
 subtypesOrder <- c("ER-/HER2-", "HER2+", "ER+/HER2- High Prolif", "ER+/HER2- Low Prolif")
 
 for(k in 1:length(geneSymbol)){
-  patientsSubType <- pairwiseTestDatasets <- as.list(NULL)
+  patientsSubType <- pairwiseTestDatasetsLess <- pairwiseTestDatasetsGreater <- as.list(NULL)
   count <- 1
   for(i in names(data.all)){
     dd <- gg <- as.list(NULL)
@@ -144,12 +144,64 @@ for(k in 1:length(geneSymbol)){
       patientDataAll[gg[[m]]] <- subtypesOrder[m]
     }       
     levels(patientDataAll) <- subtypesOrder
-    pairwiseTestDatasets[[i]] <- pairwise.wilcox.test(x=exprsDataAll, g=as.factor(patientDataAll))                     
+    pairwiseTestDatasetsLess[[i]] <- pairwise.wilcox.test(x=exprsDataAll, g=as.factor(patientDataAll), alternative="less", p.adjust="none")
+    pairwiseTestDatasetsGreater[[i]] <- pairwise.wilcox.test(x=exprsDataAll, g=as.factor(patientDataAll), alternative="greater", p.adjust="none")
     count <- count + 1
   }
-  pairwiseTest[[k]] <-pairwiseTestDatasets
+  pairwiseTestLess[[k]] <-pairwiseTestDatasetsLess
+  pairwiseTestGreater[[k]] <-pairwiseTestDatasetsGreater  
 }
-names(pairwiseTest) <- geneSymbol
+names(pairwiseTestLess) <- geneSymbol
+names(pairwiseTestGreater) <- geneSymbol
+
+## initiate results matrix
+resultsMatrix <- rep(NA, length(subtypesOrder)^2)
+dim(resultsMatrix) <- c(length(subtypesOrder),length(subtypesOrder))
+colnames(resultsMatrix) <- subtypesOrder
+rownames(resultsMatrix) <- subtypesOrder
+
+combPvalueL <- rep(1, (length(subtypesOrder)-1)^2)
+dim(combPvalueL) <- c(length(subtypesOrder)-1,length(subtypesOrder)-1)
+colnames(combPvalueL) <- colnames(pairwiseTestLess[[1]][[1]]$p.value)
+rownames(combPvalueL) <- rownames(pairwiseTestLess[[1]][[1]]$p.value)
+combPvalueG <- combPvalueL
+
+combinedPairwiseTestLess <- combinedPairwiseTestGreater <- as.list(NULL)
+finalMatrix <- as.list(NULL)
+for(i in geneSymbol){                              
+  tmpPvaluesL <- tmpPvaluesG <- NULL
+  for(j in names(data.all)){    
+    tmpPvaluesL <- rbind(tmpPvaluesL, pairwiseTestLess[[i]][[j]]$p.value[lower.tri(pairwiseTestLess[[i]][[j]]$p.value,diag=TRUE)])    
+    tmpPvaluesG <- rbind(tmpPvaluesG, pairwiseTestGreater[[i]][[j]]$p.value[lower.tri(pairwiseTestGreater[[i]][[j]]$p.value,diag=TRUE)])        
+  }
+  subtypePvaluesL <- subtypePvaluesG <- NULL
+  for(m in 1:length(names(data.all))){
+    subtypePvaluesL[m] <- combine.test(tmpPvaluesL[,m])
+    subtypePvaluesG[m] <- combine.test(tmpPvaluesG[,m])
+  }
+  combPvalueL[lower.tri(combPvalue, diag=TRUE)] <- subtypePvaluesL
+  combinedPairwiseTestLess[[i]] <- combPvalueL
+  
+  combPvalueG[lower.tri(combPvalue, diag=TRUE)] <- subtypePvaluesG
+  combinedPairwiseTestGreater[[i]] <- combPvalueG
+  
+  orderPosL <- c(3,1,2,5,6,4)
+  orderPosG <- c(3,1,5,2,6,4)
+  resultsMatrix[lower.tri(resultsMatrix)] <- subtypePvaluesL[orderPosL]
+  resultsMatrix[upper.tri(resultsMatrix)] <- subtypePvaluesG[orderPosG]
+  finalMatrix[[i]] <- resultsMatrix
+}
+
+
+
+## xtable(finalMatrix[["ESR1"]], digits=3, display=c("s",rep("E",4)))
+
+for(i in geneSymbols){
+  print(xtable(finalMatrix[[i]], digits=3, display=c("s",rep("E",4))))
+  flush.console()
+}
+
+
 
 
 
